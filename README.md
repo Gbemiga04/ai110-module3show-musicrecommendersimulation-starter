@@ -47,7 +47,7 @@ Real-world platforms like Spotify and YouTube combine two approaches. **Collabor
 
 **Why mood outweighs genre:** the suggested starting weights (+2.0 genre, +1.0 mood) rank a lofi song in the wrong mood (*Focus Flow*, "focused") above an ambient song with the right mood (*Spacewalk Thoughts*, "chill"). Because I choose music by mood, I flipped the weights. Mood is the main signal, and genre is a tiebreaker bonus.
 
-**Ranking Rule** (all songs): score every song, sort from highest to lowest score (ties broken by energy closeness), and return the top `k` along with the reasons each song earned its points.
+**Ranking Rule** (all songs): score every song, sort from highest to lowest score (ties broken by energy closeness), and return the top `k` along with the reasons each song earned its points. A diversity penalty (-1.0 per repeated artist, -0.5 per repeated genre) is applied as the list is built, so the top results aren't all the same artist or genre (see Stretch Challenges).
 
 ### Data and user profile
 
@@ -121,79 +121,70 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Sample Recommendation Output
 
-Output of `python -m src.main` for the default "Happy Pop" profile and my "Chill Lofi" profile:
+Output of `python -m src.main` for the default "Happy Pop" profile and my "Chill Lofi" profile (with the diversity penalty on):
 
 ```
 Loading songs from data/songs.csv...
 Loaded songs: 18
 
-================================================================
 Profile: Happy Pop
   mood=happy  genre=pop  energy=0.8  likes_acoustic=False
-================================================================
-1. Sunrise City - Neon Echo
-   Score: 4.88 / 5.0   (pop, happy)
-     - mood match: happy (+2.0)
-     - energy 0.82 vs target 0.80 (+1.47)
-     - genre match: pop (+1.0)
-     - electronic sound (+0.41)
++----+--------------------------+-------+------------------------------------------------+
+| #  | Song                     | Score | Reasons                                        |
++====+==========================+=======+================================================+
+| 1  | Sunrise City             | 4.88  | - mood match: happy (+2.0)                     |
+|    | by Neon Echo             |       | - energy 0.82 vs target 0.80 (+1.47)           |
+|    | pop / happy              |       | - genre match: pop (+1.0)                      |
+|    |                          |       | - electronic sound (+0.41)                     |
++----+--------------------------+-------+------------------------------------------------+
+| 2  | Rooftop Lights           | 3.77  | - mood match: happy (+2.0)                     |
+|    | by Indigo Parade         |       | - energy 0.76 vs target 0.80 (+1.44)           |
+|    | indie pop / happy        |       | - electronic sound (+0.33)                     |
++----+--------------------------+-------+------------------------------------------------+
+| 3  | Gym Hero                 | 2.28  | - energy 0.93 vs target 0.80 (+1.30)           |
+|    | by Max Pulse             |       | - genre match: pop (+1.0)                      |
+|    | pop / intense            |       | - electronic sound (+0.47)                     |
+|    |                          |       | - diversity: pop already listed (-0.5)         |
++----+--------------------------+-------+------------------------------------------------+
+| 4  | Concrete Crown           | 1.91  | - energy 0.78 vs target 0.80 (+1.47)           |
+|    | by Blockwise             |       | - electronic sound (+0.44)                     |
+|    | hip-hop / confident      |       |                                                |
++----+--------------------------+-------+------------------------------------------------+
+| 5  | Storm Runner             | 1.78  | - energy 0.91 vs target 0.80 (+1.33)           |
+|    | by Voltline              |       | - electronic sound (+0.45)                     |
+|    | rock / intense           |       |                                                |
++----+--------------------------+-------+------------------------------------------------+
+Summary: top pick Sunrise City (4.88 / 5.0) | 5 artists | 4 genres
 
-2. Rooftop Lights - Indigo Parade
-   Score: 3.77 / 5.0   (indie pop, happy)
-     - mood match: happy (+2.0)
-     - energy 0.76 vs target 0.80 (+1.44)
-     - electronic sound (+0.33)
-
-3. Gym Hero - Max Pulse
-   Score: 2.78 / 5.0   (pop, intense)
-     - energy 0.93 vs target 0.80 (+1.30)
-     - genre match: pop (+1.0)
-     - electronic sound (+0.47)
-
-4. Concrete Crown - Blockwise
-   Score: 1.91 / 5.0   (hip-hop, confident)
-     - energy 0.78 vs target 0.80 (+1.47)
-     - electronic sound (+0.44)
-
-5. Night Drive Loop - Neon Echo
-   Score: 1.81 / 5.0   (synthwave, moody)
-     - energy 0.75 vs target 0.80 (+1.42)
-     - electronic sound (+0.39)
-
-================================================================
 Profile: Chill Lofi
   mood=chill  genre=lofi  energy=0.4  likes_acoustic=True
-================================================================
-1. Library Rain - Paper Lanterns
-   Score: 4.85 / 5.0   (lofi, chill)
-     - mood match: chill (+2.0)
-     - energy 0.35 vs target 0.40 (+1.42)
-     - genre match: lofi (+1.0)
-     - acoustic sound (+0.43)
-
-2. Midnight Coding - LoRoom
-   Score: 4.82 / 5.0   (lofi, chill)
-     - mood match: chill (+2.0)
-     - energy 0.42 vs target 0.40 (+1.47)
-     - genre match: lofi (+1.0)
-     - acoustic sound (+0.35)
-
-3. Spacewalk Thoughts - Orbit Bloom
-   Score: 3.78 / 5.0   (ambient, chill)
-     - mood match: chill (+2.0)
-     - energy 0.28 vs target 0.40 (+1.32)
-     - acoustic sound (+0.46)
-
-4. Focus Flow - LoRoom
-   Score: 2.89 / 5.0   (lofi, focused)
-     - energy 0.40 vs target 0.40 (+1.50)
-     - genre match: lofi (+1.0)
-     - acoustic sound (+0.39)
-
-5. Coffee Shop Stories - Slow Stereo
-   Score: 1.90 / 5.0   (jazz, relaxed)
-     - energy 0.37 vs target 0.40 (+1.46)
-     - acoustic sound (+0.45)
++----+--------------------------+-------+------------------------------------------------+
+| #  | Song                     | Score | Reasons                                        |
++====+==========================+=======+================================================+
+| 1  | Library Rain             | 4.85  | - mood match: chill (+2.0)                     |
+|    | by Paper Lanterns        |       | - energy 0.35 vs target 0.40 (+1.42)           |
+|    | lofi / chill             |       | - genre match: lofi (+1.0)                     |
+|    |                          |       | - acoustic sound (+0.43)                       |
++----+--------------------------+-------+------------------------------------------------+
+| 2  | Midnight Coding          | 4.32  | - mood match: chill (+2.0)                     |
+|    | by LoRoom                |       | - energy 0.42 vs target 0.40 (+1.47)           |
+|    | lofi / chill             |       | - genre match: lofi (+1.0)                     |
+|    |                          |       | - acoustic sound (+0.35)                       |
+|    |                          |       | - diversity: lofi already listed (-0.5)        |
++----+--------------------------+-------+------------------------------------------------+
+| 3  | Spacewalk Thoughts       | 3.78  | - mood match: chill (+2.0)                     |
+|    | by Orbit Bloom           |       | - energy 0.28 vs target 0.40 (+1.32)           |
+|    | ambient / chill          |       | - acoustic sound (+0.46)                       |
++----+--------------------------+-------+------------------------------------------------+
+| 4  | Coffee Shop Stories      | 1.90  | - energy 0.37 vs target 0.40 (+1.46)           |
+|    | by Slow Stereo           |       | - acoustic sound (+0.45)                       |
+|    | jazz / relaxed           |       |                                                |
++----+--------------------------+-------+------------------------------------------------+
+| 5  | Empty Platform           | 1.72  | - energy 0.30 vs target 0.40 (+1.35)           |
+|    | by Grey Harbor           |       | - acoustic sound (+0.37)                       |
+|    | blues / sad              |       |                                                |
++----+--------------------------+-------+------------------------------------------------+
+Summary: top pick Library Rain (4.85 / 5.0) | 5 artists | 4 genres
 ```
 
 **Does it match expectations?** Yes. For Happy Pop, *Sunrise City* (the only song that is both pop and happy) comes first. *Rooftop Lights* (indie pop, happy) comes second, ahead of *Gym Hero* (pop, intense), because the mood match outweighs the genre match. Note that "indie pop" doesn't count as a pop match, so the exact-match genre rule is strict. Positions 4–5 have no label matches and are ranked by energy closeness alone.
@@ -202,13 +193,36 @@ Profile: Chill Lofi
 
 ---
 
+## Stretch Challenges
+
+### Challenge 3: Diversity penalty
+
+**Prompt used:** "In recommend_songs, add a diversity rule so the top k doesn't fill up with the same artist or genre. Build the list one song at a time. Before each pick, subtract 1.0 from a song's score for every song by the same artist already in the list, and 0.5 for every song of the same genre already in the list. Add the penalty to the song's reasons, like 'diversity: LoRoom already listed (-1.0)'. Keep the original ranking available with a diversity=False flag."
+
+**How it works:** `recommend_songs` still scores every song the same way. Then, instead of taking the top 5 straight from the sorted list, it picks one song at a time. Each candidate loses points for repeating an artist (-1.0 each) or a genre (-0.5 each) that's already been picked, and the highest adjusted score wins the next spot. Penalties show up as reasons, so the user can see why a song dropped. `recommend_songs(..., diversity=False)` gives the original ranking.
+
+| Profile | Without diversity | With diversity | Why |
+|---|---|---|---|
+| Happy Pop | #5 Night Drive Loop | #5 Storm Runner | Night Drive Loop is by Neon Echo, the same artist as #1 |
+| Chill Lofi | #4 Focus Flow | #4 Coffee Shop Stories, #5 Empty Platform | Focus Flow would be the 3rd lofi song *and* the 2nd LoRoom song (-2.0) |
+| Deep Intense Rock | #5 Sunrise City | #5 Concrete Crown | Sunrise City would be a 2nd pop song after Gym Hero |
+| Acoustic Headbanger / Sloppy Input | #5 Sunrise City | #5 Rooftop Lights | Same pop repeat |
+
+**Was it better?** Mostly. Every list now has 4–5 different genres and no repeated artists. The trade-off shows in Chill Lofi: dropping Focus Flow pulled in Empty Platform (sad blues), which fits the energy but not the chill mood. Also, Rooftop Lights is "indie pop," so the genre penalty doesn't treat it as pop. That's the same strict-label problem from the model card.
+
+### Challenge 4: Summary table
+
+**Prompt used:** "Suggest a way to show my top recommendations as a table in the terminal, using tabulate or simple ASCII formatting. The table must include the reasons for each score. Show rank, song (title, artist, genre/mood), score, and every reason on its own line, wrapped so the table stays readable. Add a one-line summary under each table."
+
+**How it works:** I went with plain ASCII instead of `tabulate`, so there's no extra dependency. `print_recommendations` in `src/main.py` builds a bordered table where each cell can hold several lines: song details stack in one column, and each reason gets its own wrapped line. A summary line under each table shows the top pick and how many different artists and genres made the list, which also makes it easy to check the diversity rule. See the sample output above.
+
+---
+
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
-
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+- **Weight shift (energy ×2, genre ÷2):** I temporarily changed energy from 1.5 to 3.0 points and genre from 1.0 to 0.5. Five of seven profiles kept the exact same top 5. Chill Lofi's #1 and #2 swapped by 0.01 points, and Unknown Tastes swapped its #5 for a song with closer energy. The results were mostly *different*, not more accurate. The change also made the system more fragile: for "Sad but Hyped," the only sad song's lead shrank from 1.80 to 0.41 points. I reverted to the original weights. Full results are in [model_card.md](model_card.md#7-evaluation).
+- **Genre-first vs mood-first (planning):** with the starter weights (genre 2.0, mood 1.0), a chill-lofi user got *Focus Flow* (lofi, "focused") ahead of *Spacewalk Thoughts* (ambient, "chill"). Flipping to mood-first reversed that, which matched how I pick music.
+- **Seven user profiles:** three normal and four adversarial (conflicting preferences, unknown labels, sloppy input). Normal profiles behave well. Adversarial ones show that energy takes over when labels don't match, and that capitalized labels or out-of-range energy break the results. See the Evaluation section of [model_card.md](model_card.md#7-evaluation).
 
 ---
 
@@ -232,10 +246,6 @@ Read and complete `model_card.md`:
 
 [**Model Card**](model_card.md)
 
-Write 1 to 2 paragraphs here about what you learned:
+The main thing I learned is that a recommender doesn't really "know" what you like. It just turns your taste into a few numbers and labels, compares every song against them, and sorts the list. Mine gives points for matching mood, being close to your energy level, matching genre, and sounding acoustic or electronic, and that's it. Still, the results felt surprisingly personal when the profile was clear. What made the biggest difference wasn't fancy math. It was choices I made, like scoring energy by how *close* a song is instead of "higher is better," and deciding mood should matter more than genre because that's how I actually listen.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
-
-
-
+Bias shows up in places I didn't expect. My catalog has three "chill" songs but only one sad song, one angry song and one romantic song, so if your taste is common you get a great list, and if it's not you get one good match and a bunch of filler. Exact label matching made it worse: a rock fan got a pop workout track over a metal song because the metal song was tagged "angry" instead of "intense." And a tiny typo in your profile could flip your whole list. If that happens with 18 songs, I can only imagine what happens at Spotify's scale, where whatever's overrepresented in the data, or whoever labeled it, quietly shapes what millions of people hear.

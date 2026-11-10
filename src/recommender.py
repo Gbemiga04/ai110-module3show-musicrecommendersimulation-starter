@@ -94,8 +94,28 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
 
     return score, reasons
 
-def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
-    """Score every song, sort highest first (ties by energy closeness), and return the top k as (song, score, explanation)."""
+ARTIST_PENALTY = 1.0  # per song by the same artist already in the list
+GENRE_PENALTY = 0.5   # per song of the same genre already in the list
+
+def diversity_penalty(song: Dict, selected: List[Tuple[Dict, float, List[str]]]) -> Tuple[float, List[str]]:
+    """Return the points to subtract for repeating an artist or genre already picked, plus reasons."""
+    artist_repeats = sum(1 for picked, _, _ in selected if picked["artist"] == song["artist"])
+    genre_repeats = sum(1 for picked, _, _ in selected if picked["genre"] == song["genre"])
+
+    penalty = 0.0
+    reasons = []
+    if artist_repeats:
+        points = ARTIST_PENALTY * artist_repeats
+        penalty += points
+        reasons.append(f"diversity: {song['artist']} already listed (-{points:.1f})")
+    if genre_repeats:
+        points = GENRE_PENALTY * genre_repeats
+        penalty += points
+        reasons.append(f"diversity: {song['genre']} already listed (-{points:.1f})")
+    return penalty, reasons
+
+def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5, diversity: bool = True) -> List[Tuple[Dict, float, str]]:
+    """Score every song, then pick the top k one at a time, penalizing repeated artists/genres when diversity is on."""
     # Judge every song with score_song
     scored = [(song, *score_song(user_prefs, song)) for song in songs]
 
@@ -107,4 +127,22 @@ def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tup
         reverse=True,
     )
 
-    return [(song, score, "; ".join(reasons)) for song, score, reasons in ranked[:k]]
+    if not diversity:
+        return [(song, score, "; ".join(reasons)) for song, score, reasons in ranked[:k]]
+
+    # Greedy re-rank: each pick is the best song after subtracting penalties
+    # for artists and genres already in the list
+    selected = []
+    remaining = list(ranked)
+    while remaining and len(selected) < k:
+        def adjusted(item):
+            song, score, _ = item
+            return (score - diversity_penalty(song, selected)[0], -abs(song["energy"] - target))
+
+        best = max(remaining, key=adjusted)
+        remaining.remove(best)
+        song, score, reasons = best
+        penalty, penalty_reasons = diversity_penalty(song, selected)
+        selected.append((song, score - penalty, reasons + penalty_reasons))
+
+    return [(song, score, "; ".join(reasons)) for song, score, reasons in selected]
